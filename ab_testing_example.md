@@ -1,9 +1,7 @@
-a_b_test
+A/B Testing in R Markdown
 ================
 Andrew Cotter
-2023-10-24
-
-# A/B Testing Analysis Using an Example Data Set
+2023-10-25
 
 ## Introduction
 
@@ -357,6 +355,11 @@ ggplot(dcast, aes(diff))+
   geom_histogram(aes(y = ..density..), fill = "black", alpha = 0.3)+
   theme_classic()+
   geom_vline(aes(xintercept = median(dcast$diff)), size = 1.2)+
+  annotate(
+    "text", 
+    x = median(dcast$diff)-0.5, y = 0.065, 
+    label = paste("median = ", median(dcast$diff)), 
+    angle = 90, fontface = "bold")+
   xlab("Difference in Individual Location Earnings (Week 4 - Week 1)")
 ```
 
