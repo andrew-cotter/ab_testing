@@ -10,3 +10,5 @@ I made an effort to demonstrate a few key competencies in this exercise, includi
 - Data Visualization
 
 [ab_testing_example.md](https://github.com/andrew-cotter/ab_testing/blob/main/ab_testing_example.md) contains the analysis.
+
+[WA_Marketing-Campaign.csv](https://github.com/andrew-cotter/ab_testing/blob/main/WA_Marketing-Campaign.csv) contains the raw data.
