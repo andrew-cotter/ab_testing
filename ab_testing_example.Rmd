@@ -2,7 +2,7 @@
 title: "a_b_test"
 author: "Andrew Cotter"
 date: "2023-10-24"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -104,6 +104,7 @@ round(
 chisq.test(table(d$Promotion, d$MarketSize))
   
 ```
+
 Based on this analysis, I will not worry too much about market size being a confound. The distribution of promotions is balanced enough across the different markets, based on the insignificance of the chi-squre value.
 
 Next, in our further exploration of possible confounds, we can check to see if the age of the store has an impact on sales.
