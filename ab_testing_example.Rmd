@@ -36,7 +36,7 @@ Data was sourced from [Kaggle](https://www.kaggle.com/datasets/chebotinaa/fast-f
 
 ## Data Loading and Inspection
 
-```{r echo=F}
+```{r}
 library(readxl)
 d = read.csv("WA_Marketing-Campaign.csv")
 head(d)
@@ -77,7 +77,7 @@ A *confound* is any variable, whether it is in the data set or not, that impacts
 
 First, we will investigate market size. To reiterate, we need to establish that market size is a good predictor of both the outcome and the treatment in order to conclude that it is a confound. Starting with its impact on the outcome:
 
-```{r, echo = F}
+```{r}
 library(dplyr)
 
 d %>%
@@ -91,7 +91,7 @@ The data is suggesting that the market size has an appreciable impact on sales. 
 
 Next, we need to establish that promotion campaigns are unequally distributed across the different market sizes in order to deem market size a confound. Since we have such differences in the number of observations per market, I will use a proportion table to produce the point estimates, and I will use the chi-square test to check for equality across the different cells of the table (of counts).
 
-```{r, echo = F}
+```{r}
 #Proportion table for percentage of market sizes per promotion type
 round(
   prop.table(
@@ -109,7 +109,7 @@ Based on this analysis, I will not worry too much about market size being a conf
 
 Next, in our further exploration of possible confounds, we can check to see if the age of the store has an impact on sales.
 
-```{r, echo = F}
+```{r}
 library(ggplot2)
 ggplot(d, aes(x = AgeOfStore, y = SalesInThousands))+
   geom_jitter(width = 0.4, alpha = 0.2, color = "blue", size = 3)+

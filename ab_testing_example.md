@@ -40,6 +40,12 @@ Data was sourced from
 
 ## Data Loading and Inspection
 
+``` r
+library(readxl)
+d = read.csv("WA_Marketing-Campaign.csv")
+head(d)
+```
+
     ##   MarketID MarketSize LocationID AgeOfStore Promotion week SalesInThousands
     ## 1        1     Medium          1          4         3    1            33.73
     ## 2        1     Medium          1          4         3    2            35.67
@@ -126,12 +132,24 @@ establish that market size is a good predictor of both the outcome and
 the treatment in order to conclude that it is a confound. Starting with
 its impact on the outcome:
 
+``` r
+library(dplyr)
+
+d %>%
+  group_by(MarketSize) %>%
+  summarise(avg_sales = mean(SalesInThousands))
+```
+
     ## # A tibble: 3 x 2
     ##   MarketSize avg_sales
     ##   <fct>          <dbl>
     ## 1 Large           70.1
     ## 2 Medium          44.0
     ## 3 Small           57.4
+
+``` r
+(summary(aov(SalesInThousands~MarketSize, d)))
+```
 
     ##              Df Sum Sq Mean Sq F value Pr(>F)    
     ## MarketSize    2  76273   38136   268.9 <2e-16 ***
@@ -151,11 +169,26 @@ observations per market, I will use a proportion table to produce the
 point estimates, and I will use the chi-square test to check for
 equality across the different cells of the table (of counts).
 
+``` r
+#Proportion table for percentage of market sizes per promotion type
+round(
+  prop.table(
+    table(d$Promotion, d$MarketSize),
+    margin = 1),
+  2
+)
+```
+
     ##    
     ##     Large Medium Small
     ##   1  0.33   0.56  0.12
     ##   2  0.34   0.57  0.09
     ##   3  0.26   0.62  0.13
+
+``` r
+#Chi-Square test for equality of observations per cell
+chisq.test(table(d$Promotion, d$MarketSize))
+```
 
     ## 
     ##  Pearson's Chi-squared test
@@ -171,7 +204,18 @@ chi-squre value.
 Next, in our further exploration of possible confounds, we can check to
 see if the age of the store has an impact on sales.
 
+``` r
+library(ggplot2)
+ggplot(d, aes(x = AgeOfStore, y = SalesInThousands))+
+  geom_jitter(width = 0.4, alpha = 0.2, color = "blue", size = 3)+
+  theme_classic()
+```
+
 ![](ab_testing_example_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+``` r
+cor.test(d$AgeOfStore, d$SalesInThousands)
+```
 
     ## 
     ##  Pearson's product-moment correlation
