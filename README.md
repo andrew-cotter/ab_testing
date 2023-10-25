@@ -1,4 +1,4 @@
-# ab_testing
+# A/B Test Analysis in R Markdown
 An example of an A/B test analysis in R using an example data set sourced from [Kaggle](https://www.kaggle.com/datasets/chebotinaa/fast-food-marketing-campaign-ab-test).
 
 I made an effort to demonstrate a few key competencies in this exercise, including:
