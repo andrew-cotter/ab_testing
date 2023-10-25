@@ -66,14 +66,14 @@ d$Promotion = as.factor(d$Promotion)
 print(summary(d))
 ```
 
-    ##     MarketID    MarketSize    LocationID    AgeOfStore     Promotion
-    ##  3      : 88   Large :168   1      :  4   Min.   : 1.000   1:172    
-    ##  10     : 80   Medium:320   2      :  4   1st Qu.: 4.000   2:188    
-    ##  5      : 60   Small : 60   3      :  4   Median : 7.000   3:188    
-    ##  6      : 60                4      :  4   Mean   : 8.504            
-    ##  7      : 60                5      :  4   3rd Qu.:12.000            
-    ##  1      : 52                6      :  4   Max.   :28.000            
-    ##  (Other):148                (Other):524                             
+    ##     MarketID    MarketSize          LocationID    AgeOfStore     Promotion
+    ##  3      : 88   Length:548         1      :  4   Min.   : 1.000   1:172    
+    ##  10     : 80   Class :character   2      :  4   1st Qu.: 4.000   2:188    
+    ##  5      : 60   Mode  :character   3      :  4   Median : 7.000   3:188    
+    ##  6      : 60                      4      :  4   Mean   : 8.504            
+    ##  7      : 60                      5      :  4   3rd Qu.:12.000            
+    ##  1      : 52                      6      :  4   Max.   :28.000            
+    ##  (Other):148                      (Other):524                             
     ##       week      SalesInThousands
     ##  Min.   :1.00   Min.   :17.34   
     ##  1st Qu.:1.75   1st Qu.:42.55   
@@ -140,9 +140,9 @@ d %>%
   summarise(avg_sales = mean(SalesInThousands))
 ```
 
-    ## # A tibble: 3 x 2
+    ## # A tibble: 3 × 2
     ##   MarketSize avg_sales
-    ##   <fct>          <dbl>
+    ##   <chr>          <dbl>
     ## 1 Large           70.1
     ## 2 Medium          44.0
     ## 3 Small           57.4
@@ -199,16 +199,26 @@ chisq.test(table(d$Promotion, d$MarketSize))
 Based on this analysis, I will not worry too much about market size
 being a confound. The distribution of promotions is balanced enough
 across the different markets, based on the insignificance of the
-chi-squre value.
+chi-square value.
+
+### Store Age
 
 Next, in our further exploration of possible confounds, we can check to
-see if the age of the store has an impact on sales.
+see if the age of the store has an impact on sales. A simple scatter
+plot and correlation metric will suffice here.
 
 ``` r
 library(ggplot2)
-ggplot(d, aes(x = AgeOfStore, y = SalesInThousands))+
-  geom_jitter(width = 0.4, alpha = 0.2, color = "blue", size = 3)+
-  theme_classic()
+#Average for each store across the 4 weeks
+d %>% group_by(LocationID) %>%
+  summarise(AgeOfStore = mean(AgeOfStore), Avg_Sales = mean(SalesInThousands)) %>%
+#Plot
+ggplot(aes(x = AgeOfStore, y = Avg_Sales))+
+  geom_jitter(width = 0.2, alpha = 0.2, color = "blue", size = 3)+
+  theme_classic()+
+  geom_smooth(method = "lm", color = "black")+
+  ggtitle("Average Sales by Store Age")+
+  xlab("Age of Store (Years)")+ylab("Average Sales (Thousands)")
 ```
 
 ![](ab_testing_example_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
@@ -228,3 +238,161 @@ cor.test(d$AgeOfStore, d$SalesInThousands)
     ## sample estimates:
     ##         cor 
     ## -0.02853288
+
+It doesn’t appear that the age of the store has a significant impact on
+sales.
+
+### Time
+
+Getting into our first look at the efficacy of the marketing campaigns,
+let’s visualize how the store sales change over the course of the 4
+weeks that were measured. One would assume that a successful marketing
+campaign would show increased sales as time goes on. However, there are
+plenty of market forces outside of our control that could impact these
+numbers at large.
+
+``` r
+ggplot(d, aes(x = week, y = SalesInThousands, group = LocationID, color = MarketSize))+
+  geom_line(alpha = 0.4, size = 1)+
+  theme_classic()+
+  ggtitle("Sales During Marketing Campaigns (First 4 Weeks)")
+```
+
+![](ab_testing_example_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
+There is a lot going on here, and it is tough to parse out any trend
+over time, likely meaning that any effect is going to be relatively
+small and potentially insignificant. I decided to color the lines by
+market size, as they further illustrate that:
+
+- Large markets tend to have much higher sales numbers than small and
+  medium markets.
+- Medium markets far outnumber both small and large markets in this data
+  set.
+
+I will employ a slightly different approach to investigate whether sales
+are increasing over time.
+
+``` r
+library(reshape2)
+#Reshape to 1 row per LocationID, weeks as columns, sales as cell values
+dcast = dcast(d, LocationID~week, value.var = "SalesInThousands")
+#Create a new column that represents the difference in sales between weeks 1 and 4
+dcast$diff = dcast[,5]-dcast[,2]
+
+#Density plot of differences
+ggplot(dcast, aes(diff))+
+  geom_density(color = "blue", size = 1, fill = "blue", alpha = 0.5, bw = 1)+
+  geom_histogram(aes(y = ..density..), fill = "black", alpha = 0.3)+
+  theme_classic()+
+  geom_vline(aes(xintercept = median(dcast$diff)), size = 1.2)+
+  xlab("Difference in Individual Location Earnings (Week 4 - Week 1)")
+```
+
+![](ab_testing_example_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+
+There doesn’t seem to be much of a noteworthy trend here, either. If
+anything, this distribution is slightly skewed to suggest fewer sales in
+Week 4. As one final test, we can write a regression model to check this
+conclusion.
+
+For this model, I will be predicting sales as a function of week. I will
+be including random intercepts for each LocationID, since the locations
+represent a small sample of a larger population. Additionally, locations
+are nested within markets, which are also random, so I will specify that
+in the model as well. I would ideally like to do random slopes for
+locations in addition to random intercepts, however I was given warnings
+about the model being overfit when I tried that.
+
+``` r
+library(lme4)
+summary(lmer(SalesInThousands~week+(1|MarketID/LocationID), d))
+```
+
+    ## Linear mixed model fit by REML ['lmerMod']
+    ## Formula: SalesInThousands ~ week + (1 | MarketID/LocationID)
+    ##    Data: d
+    ## 
+    ## REML criterion at convergence: 3561.4
+    ## 
+    ## Scaled residuals: 
+    ##      Min       1Q   Median       3Q      Max 
+    ## -2.66878 -0.60766  0.02688  0.65667  2.79161 
+    ## 
+    ## Random effects:
+    ##  Groups              Name        Variance Std.Dev.
+    ##  LocationID:MarketID (Intercept)  15.97    3.996  
+    ##  MarketID            (Intercept) 198.84   14.101  
+    ##  Residual                         26.52    5.150  
+    ## Number of obs: 548, groups:  LocationID:MarketID, 137; MarketID, 10
+    ## 
+    ## Fixed effects:
+    ##             Estimate Std. Error t value
+    ## (Intercept)  52.5821     4.5071  11.667
+    ## week         -0.1645     0.1968  -0.836
+    ## 
+    ## Correlation of Fixed Effects:
+    ##      (Intr)
+    ## week -0.109
+
+Looking at the summary statistics of this model, week is given a very
+small negative coefficient with a relatively large standard error. This
+means that week has a small, insignificant impact on sales. We won’t
+need to worry about it much when assessing the impact of the marketing
+campaigns
+
+## Analysis of Promotion Campaign
+
+To analyze the impacts of the promotion campaigns, I will use a very
+similar linear model to the one I used above to investigate the effects
+of week. The only difference here is that we are replacing *week*, a
+continuous predictor, with *Promotion*, which is categorical. All other
+aspects of the model with regards to random effects and nesting will
+stay the same.
+
+    ## Analysis of Variance Table
+    ##           npar Sum Sq Mean Sq F value
+    ## Promotion    2 8022.5  4011.2  151.35
+
+``` r
+library(emmeans)
+model_output = emmeans(model, specs = pairwise~Promotion)
+estimates = data.frame(model_output$emmeans)
+ggplot(estimates, aes(x = Promotion, y = emmean, fill = Promotion, label = round(emmean,1)))+
+  geom_bar(stat = "identity")+
+  geom_errorbar(
+    aes(ymin = lower.CL, ymax = upper.CL),
+    width = 0.3,
+    size = 1.3
+    )+
+  geom_text(size = 5, nudge_x = .35, nudge_y = -1.6, color = "white", fontface = "bold")+
+  theme_classic()+
+  scale_fill_brewer(palette = "Dark2")+
+  ylab("Average Sales (Thousands)")+
+  ggtitle("Average Sales by Promotion")+
+  theme(legend.position = "None")
+```
+
+![](ab_testing_example_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+
+``` r
+model_output
+```
+
+    ## $emmeans
+    ##  Promotion emmean   SE   df lower.CL upper.CL
+    ##  1           57.1 4.44 9.12     47.1     67.1
+    ##  2           47.4 4.44 9.12     37.3     57.4
+    ##  3           52.2 4.44 9.10     42.1     62.2
+    ## 
+    ## Degrees-of-freedom method: satterthwaite 
+    ## Confidence level used: 0.95 
+    ## 
+    ## $contrasts
+    ##  contrast                estimate    SE  df t.ratio p.value
+    ##  Promotion1 - Promotion2     9.72 0.559 125  17.397  <.0001
+    ##  Promotion1 - Promotion3     4.92 0.568 125   8.662  <.0001
+    ##  Promotion2 - Promotion3    -4.80 0.570 125  -8.422  <.0001
+    ## 
+    ## Degrees-of-freedom method: satterthwaite 
+    ## P value adjustment: tukey method for comparing a family of 3 estimates
