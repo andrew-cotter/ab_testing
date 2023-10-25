@@ -15,11 +15,11 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 ### Scenario
 
-A fast-food chain plans to add a new item to its menu. However, they are still undecided between three possible marketing campaigns for promoting the new product. In order to determine which promotion has the greatest effect on sales, the new item is introduced at locations in several randomly selected markets. A different promotion is used at each location, and the weekly sales of the new item are recorded for the first four weeks.
+A fast-food chain plans to add a new item to its menu. However, they are still undecided between three possible promotion campaigns for promoting the new product. In order to determine which promotion has the greatest effect on sales, the new item is introduced at locations in several randomly selected markets. A different promotion is used at each location, and the weekly sales of the new item are recorded for the first four weeks.
 
 ### Goal
 
-Evaluate A/B testing results and decide which marketing strategy works the best.
+Evaluate A/B testing results and decide which promotion strategy works the best.
 
 ### Columns
 
@@ -30,7 +30,7 @@ Evaluate A/B testing results and decide which marketing strategy works the best.
 -   **week**: one of four weeks when the promotions were run
 -   **SalesInThousands**: sales amount for a specific LocationID, Promotion, and week
 
-Data was sourced from [Kaggle](https://www.kaggle.com/datasets/chebotinaa/fast-food-marketing-campaign-ab-test)
+Data was sourced from [Kaggle](https://www.kaggle.com/datasets/chebotinaa/fast-food-promotion-campaign-ab-test)
 
 ------------------------------------------------------------------------
 
@@ -130,13 +130,13 @@ It doesn't appear that the age of the store has a significant impact on sales.
 
 ### Time
 
-Getting into our first look at the efficacy of the marketing campaigns, let's visualize how the store sales change over the course of the 4 weeks that were measured. One would assume that a successful marketing campaign would show increased sales as time goes on. However, there are plenty of market forces outside of our control that could impact these numbers at large.
+Getting into our first look at the efficacy of the promotion campaigns, let's visualize how the store sales change over the course of the 4 weeks that were measured. One would assume that a successful promotion campaign would show increased sales as time goes on. However, there are plenty of market forces outside of our control that could impact these numbers at large.
 
 ```{r}
 ggplot(d, aes(x = week, y = SalesInThousands, group = LocationID, color = MarketSize))+
   geom_line(alpha = 0.4, size = 1)+
   theme_classic()+
-  ggtitle("Sales During Marketing Campaigns (First 4 Weeks)")
+  ggtitle("Sales During promotion Campaigns (First 4 Weeks)")
 ```
 
 There is a lot going on here, and it is tough to parse out any trend over time, likely meaning that any effect is going to be relatively small and potentially insignificant. I decided to color the lines by market size, as they further illustrate that:
@@ -171,13 +171,13 @@ library(lme4)
 summary(lmer(SalesInThousands~week+(1|MarketID/LocationID), d))
 ```
 
-Looking at the summary statistics of this model, week is given a very small negative coefficient with a relatively large standard error. This means that week has a small, insignificant impact on sales. We won't need to worry about it much when assessing the impact of the marketing campaigns
+Looking at the summary statistics of this model, week is given a very small negative coefficient with a relatively large standard error. This means that week has a small, insignificant impact on sales. We won't need to worry about it much when assessing the impact of the promotion campaigns
 
 ## Analysis of Promotion Campaign
 
 To analyze the impacts of the promotion campaigns, I will use a very similar linear model to the one I used above to investigate the effects of week. The only difference here is that we are replacing *week*, a continuous predictor, with *Promotion*, which is categorical. All other aspects of the model with regards to random effects and nesting will stay the same.
 
-```{r, echo = FALSE}
+```{r}
 model = lmer(SalesInThousands~Promotion + (1|MarketID/LocationID), d)
 model_summary = summary(model)
 
@@ -203,6 +203,7 @@ ggplot(estimates, aes(x = Promotion, y = emmean, fill = Promotion, label = round
   ggtitle("Average Sales by Promotion")+
   theme(legend.position = "None")
 ```
+
 ```{r}
 model_output
 ```

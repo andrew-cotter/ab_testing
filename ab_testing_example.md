@@ -10,7 +10,7 @@ Andrew Cotter
 ### Scenario
 
 A fast-food chain plans to add a new item to its menu. However, they are
-still undecided between three possible marketing campaigns for promoting
+still undecided between three possible promotion campaigns for promoting
 the new product. In order to determine which promotion has the greatest
 effect on sales, the new item is introduced at locations in several
 randomly selected markets. A different promotion is used at each
@@ -19,7 +19,7 @@ first four weeks.
 
 ### Goal
 
-Evaluate A/B testing results and decide which marketing strategy works
+Evaluate A/B testing results and decide which promotion strategy works
 the best.
 
 ### Columns
@@ -34,7 +34,7 @@ the best.
   Promotion, and week
 
 Data was sourced from
-[Kaggle](https://www.kaggle.com/datasets/chebotinaa/fast-food-marketing-campaign-ab-test)
+[Kaggle](https://www.kaggle.com/datasets/chebotinaa/fast-food-promotion-campaign-ab-test)
 
 ------------------------------------------------------------------------
 
@@ -244,9 +244,9 @@ sales.
 
 ### Time
 
-Getting into our first look at the efficacy of the marketing campaigns,
+Getting into our first look at the efficacy of the promotion campaigns,
 let’s visualize how the store sales change over the course of the 4
-weeks that were measured. One would assume that a successful marketing
+weeks that were measured. One would assume that a successful promotion
 campaign would show increased sales as time goes on. However, there are
 plenty of market forces outside of our control that could impact these
 numbers at large.
@@ -255,7 +255,7 @@ numbers at large.
 ggplot(d, aes(x = week, y = SalesInThousands, group = LocationID, color = MarketSize))+
   geom_line(alpha = 0.4, size = 1)+
   theme_classic()+
-  ggtitle("Sales During Marketing Campaigns (First 4 Weeks)")
+  ggtitle("Sales During promotion Campaigns (First 4 Weeks)")
 ```
 
 ![](ab_testing_example_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
@@ -338,7 +338,7 @@ summary(lmer(SalesInThousands~week+(1|MarketID/LocationID), d))
 Looking at the summary statistics of this model, week is given a very
 small negative coefficient with a relatively large standard error. This
 means that week has a small, insignificant impact on sales. We won’t
-need to worry about it much when assessing the impact of the marketing
+need to worry about it much when assessing the impact of the promotion
 campaigns
 
 ## Analysis of Promotion Campaign
@@ -349,6 +349,14 @@ of week. The only difference here is that we are replacing *week*, a
 continuous predictor, with *Promotion*, which is categorical. All other
 aspects of the model with regards to random effects and nesting will
 stay the same.
+
+``` r
+model = lmer(SalesInThousands~Promotion + (1|MarketID/LocationID), d)
+model_summary = summary(model)
+
+library(lmerTest)
+anova(model)
+```
 
     ## Analysis of Variance Table
     ##           npar Sum Sq Mean Sq F value
