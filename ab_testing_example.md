@@ -25,14 +25,22 @@ the best.
 - **MarketID**: unique identifier for market
 - **MarketSize**: size of market area by sales
 - **LocationID**: unique identifier for store location
-- **AgeOfStore**: age of store in years Promotion: one of three
-  promotions that were tested
+- **AgeOfStore**: age of store in years
+- **Promotion**: one of three promotions that were tested
 - **week**: one of four weeks when the promotions were run
 - **SalesInThousands**: sales amount for a specific LocationID,
   Promotion, and week
 
 Data was sourced from
 [Kaggle](https://www.kaggle.com/datasets/chebotinaa/fast-food-promotion-campaign-ab-test)
+
+### Outcome
+
+Employing a linear mixed-effect model, conditioned on Market ID and
+Market Size, the findings indicate that Promotion \#1 emerges as the
+most effective campaign for advancing. Projections suggest that this
+campaign is poised to yield average sales outcomes ranging from 6% to
+10% superior to the next most favorable alternative.
 
 ------------------------------------------------------------------------
 
@@ -52,15 +60,13 @@ head(d)
     ## 5        1     Medium          2          5         2    1            27.81
     ## 6        1     Medium          2          5         2    2            34.67
 
-Upon inspection, I notice that there are a few columns that need
-redefining in terms of their data type. MarketID, LocationID, and
-Promotion should all be factors rather than integers.
-
 ``` r
+#Redefinee numerics as factors
 d$MarketID = as.factor(d$MarketID)
 d$LocationID = as.factor(d$LocationID)
 d$Promotion = as.factor(d$Promotion)
 
+#Column Summaries
 print(summary(d))
 ```
 
@@ -82,25 +88,7 @@ print(summary(d))
     ## 
 
 ``` r
-print(range(table(d$MarketID)))
-```
-
-    ## [1] 24 88
-
-It appears that there are some imbalances in the data set.
-
-- For MarketID, there are a variety of different counts that range from
-  24-88. The number of observations that we have per market is going to
-  influence the degree of confidence in the conclusions that we can draw
-  within that market.
-- In terms of market sizes, it appears that medium markets are by far
-  the most common. Again, we are going to have less confidence in the
-  conclusions that we draw about large and especially small markets
-  compared to the ones we draw about medium markets.
-- Finally, it appears that promotion 1 was shown slightly less than
-  promotions 2 and 3.
-
-``` r
+#Missing value check
 table(is.na(d))
 ```
 
@@ -108,28 +96,23 @@ table(is.na(d))
     ## FALSE 
     ##  3836
 
-There are no missing values.
+Upon inspection, adjustments were made to redefine the data types of
+MarketID, LocationID, and Promotion as factors.
 
 ------------------------------------------------------------------------
 
 ## Searching for Confounds
 
-Before we go about building a model for our variable of interest
-(Promotion), we need to do some checks to ensure that there are no
-*confounds* that were introduced by the experimental design.
+The following sections explore the variables in the data set to assess
+whether or not they are confounds that will need to be accounted for in
+the final model.
 
 A *confound* is any variable, whether it is in the data set or not, that
-impacts both the treatment and the outcome. This commonly arises from
-poor experimental design, such as imbalances in the characteristics of
-the control and treatment groups.
+impacts the treatment and the outcome. This commonly arises from poor
+experimental design, such as imbalances in the characteristics of the
+control and treatment groups.
 
 ### Distribution of Promotions Across Markets
-
-First we will look at how the different treatments (Promotions) were
-distributed across the markets, and if there is significant variability
-in the outcome (SalesInThousands) that can be attributed to the
-different markets. If both of these criteria are satisfied, then
-*MarketID* is a confound.
 
 ``` r
 #Proportion table for percentage of promotions within each market
@@ -197,11 +180,10 @@ impact on sales (as indicated by the ANOVA).
 
 ### Market Size
 
-Next, we will investigate *MarketSize*. It is worth pointing out here
-that each *MarketID*, which we already established is a confound, only
-has a single market size value associated with it. If we can show that
-market size has a significant impact on sales, that would explain at
-least some of why MarketID has an impact on sales.
+NOTE: Each *MarketID*, which was already determined a confound, only has
+a single market size value associated with it. If market size has a
+significant impact on sales, it would explain some of why MarketID has
+an impact on sales.
 
 ``` r
 d %>%
@@ -225,14 +207,6 @@ summary(aov(SalesInThousands~MarketSize, d))
     ## Residuals   545  77290     142                   
     ## ---
     ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-
-The data is suggesting that the market size has an appreciable impact on
-sales. The 1-way ANOVA suggests statistical significance, and the
-summary table shows that large markets see, on average, about 60% more
-in sales when compared to medium markets.
-
-Next, we need to see if the promotion campaigns are unequally
-distributed across the different market sizes.
 
 ``` r
 #Proportion table for percentage of market sizes per promotion type
@@ -261,20 +235,13 @@ chisq.test(table(d$Promotion, d$MarketSize))
     ## data:  table(d$Promotion, d$MarketSize)
     ## X-squared = 4.7539, df = 4, p-value = 0.3135
 
-Since the chi-square statistic is not significant, we fail to reject the
-null hypothesis and conclude that the promotions are equally distributed
-across the different market sizes.
-
-Up to now, we have established that *MarketID* impacts both *MarketSize*
-and average sales, and that the *Promotions* are not equally distributed
-across the different markets. Keeping these in mind, we will move onto
-investigating some of the other measured variables.
+The 1-way ANOVA yielded statistical significance, and the summary table
+shows that large markets see, on average, about 60% more in sales
+compared to medium markets. However, it cannot be concluded that the
+promotions are differently distributed across the different market
+sizes. Therefore, *MarketSize* is not a confound.
 
 ### Store Age
-
-Next, in our further exploration of possible confounds, we can check to
-see if the age of the store has an impact on sales. A simple scatter
-plot and correlation metric will suffice here.
 
 ``` r
 library(ggplot2)
@@ -313,34 +280,15 @@ sales.
 
 ### Time
 
-Getting into our first look at the efficacy of the promotion campaigns,
-let’s visualize how the store sales change over the course of the 4
-weeks that were measured. One would assume that a successful promotion
-campaign would show increased sales as time goes on. However, there are
-plenty of market forces outside of our control that could impact these
-numbers at large.
-
 ``` r
+#Visualization of sales over the Promotional Trial.
 ggplot(d, aes(x = week, y = SalesInThousands, group = LocationID, color = MarketSize))+
   geom_line(alpha = 0.4, size = 1)+
   theme_classic()+
-  ggtitle("Sales During promotion Campaigns (First 4 Weeks)")
+  ggtitle("Sales During Promotion Campaigns (First 4 Weeks)")
 ```
 
 ![](ab_testing_example_files/figure-gfm/unnamed-chunk-9-1.png)<!-- -->
-
-There is a lot going on here, and it is tough to parse out any trend
-over time, likely meaning that any effect is going to be relatively
-small and potentially insignificant. I decided to color the lines by
-market size, as they further illustrate that:
-
-- Large markets tend to have much higher sales numbers than small and
-  medium markets.
-- Medium markets far outnumber both small and large markets in this data
-  set.
-
-I will employ a slightly different approach to investigate whether sales
-are increasing over time.
 
 ``` r
 library(reshape2)
@@ -360,103 +308,68 @@ ggplot(dcast, aes(diff))+
     x = median(dcast$diff)-0.5, y = 0.065, 
     label = paste("median = ", median(dcast$diff)), 
     angle = 90, fontface = "bold")+
-  xlab("Difference in Individual Location Earnings (Week 4 - Week 1)")
+  xlab("Difference in Individual Location Sales (Week 4 - Week 1)")
 ```
 
 ![](ab_testing_example_files/figure-gfm/unnamed-chunk-10-1.png)<!-- -->
 
-There doesn’t seem to be much of a noteworthy trend here, either. If
-anything, this distribution is slightly skewed to suggest fewer sales in
-Week 4. As one final test, we can write a regression model to check this
-conclusion.
-
-For this model, I will be predicting sales as a function of week. Some
-of the features of this model include:
-
-- Random intercepts for each LocationID, since the locations represent a
-  small sample of a larger population.
-- Additionally, locations nested within markets, which are also random,
-  so I will specify that in the model as well.
-- Random slopes for each promotion, in case the effect over time varies
-  by promotion.
-
 ``` r
 library(lme4)
-summary(lmer(SalesInThousands~week+(Promotion|MarketID/LocationID), d))
+summary(lmer(SalesInThousands~week+(1|MarketID/LocationID), d))
 ```
 
     ## Linear mixed model fit by REML ['lmerMod']
-    ## Formula: SalesInThousands ~ week + (Promotion | MarketID/LocationID)
+    ## Formula: SalesInThousands ~ week + (1 | MarketID/LocationID)
     ##    Data: d
     ## 
-    ## REML criterion at convergence: 3436.8
+    ## REML criterion at convergence: 3561.4
     ## 
     ## Scaled residuals: 
     ##      Min       1Q   Median       3Q      Max 
-    ## -3.05465 -0.66790 -0.00129  0.68213  2.53265 
+    ## -2.66878 -0.60766  0.02688  0.65667  2.79161 
     ## 
     ## Random effects:
-    ##  Groups              Name        Variance  Std.Dev.  Corr       
-    ##  LocationID:MarketID (Intercept) 0.000e+00  0.000000            
-    ##                      Promotion2  1.132e-05  0.003364  NaN       
-    ##                      Promotion3  1.801e+00  1.341899  NaN  0.99 
-    ##  MarketID            (Intercept) 2.143e+02 14.639405            
-    ##                      Promotion2  8.482e+01  9.209648 -0.30      
-    ##                      Promotion3  2.293e+01  4.788270 -0.28  1.00
-    ##  Residual                        2.597e+01  5.096049            
+    ##  Groups              Name        Variance Std.Dev.
+    ##  LocationID:MarketID (Intercept)  15.97    3.996  
+    ##  MarketID            (Intercept) 198.84   14.101  
+    ##  Residual                         26.52    5.150  
     ## Number of obs: 548, groups:  LocationID:MarketID, 137; MarketID, 10
     ## 
     ## Fixed effects:
     ##             Estimate Std. Error t value
-    ## (Intercept)  52.9161     4.4466  11.900
-    ## week         -0.1645     0.1947  -0.845
+    ## (Intercept)  52.5821     4.5071  11.667
+    ## week         -0.1645     0.1968  -0.836
     ## 
     ## Correlation of Fixed Effects:
     ##      (Intr)
     ## week -0.109
-    ## optimizer (nloptwrap) convergence code: 0 (OK)
-    ## boundary (singular) fit: see help('isSingular')
 
-Looking at the summary statistics of this model, week is given a very
-small negative coefficient with a relatively large standard error. This
-means that week has a small, insignificant impact on sales. We won’t
-need to worry about it much when assessing the impact of the promotion
-campaigns.
+All of the visualizations and analysis techniques attempted above
+suggest no clear trend in sales over the four weeks.
 
 ## Analysis of Promotion Campaign
 
-Before we start constructing a model to analyze the effect of
-*Promotion* on *SalesInThousands*, we need to consider what potential
-confounds we encountered in the exercises above.
-
-To reiterate, we established that *MarketID* impacts both *MarketSize*
-and average sales, and that the *Promotions* are not equally distributed
-across the different markets. Visually, the causal structure looks like
-this:
+It has been established that *MarketID* impacts both *MarketSize* and
+average sales, and that the *Promotions* are not equally distributed
+across the different markets. The casual structure is visualized in the
+directed acyclic graph (DAG) below:
 
 ![](ab_testing_example_files/figure-gfm/unnamed-chunk-12-1.png)<!-- -->
 
-This directed acyclic graph (DAG) summarizes what we learned about the
-factors that we need to consider in constructing a model that isolates
-the effect that promotion has on sales.
+The final model is going to need to be conditioned on the treatment
+(*Promotion*) and the outcome (*SalesInThousands*). However, this
+variable set alone leaves a backdoor path from promotion to sales via
+the route that goes through *MarketID* and *MarketSize*.
 
-Obviously, the model is going to need to be conditioned on the two main
-variables of interest, the treatment (*Promotion*) and the outcome
-(*SalesInThousands*). However, if we just leave it at that, there will
-be a backdoor path from promotion to sales via the route that goes
-through *MarketID* and *MarketSize*.
-
-Additionally, *MarketSize* affects sales independent from *Promotion*.
-Conditioning our model on *MarketSize* will take care of both of these
+Additionally, *MarketSize* affects sales independent of *Promotion*.
+Conditioning the model on *MarketSize* will take care of both of these
 concerns - it will isolate the effect of *Promotion* by removing
 variability in sales due to *MarketSize* while also closing the backdoor
-path between *Promotion* and sales via *MarketID*.
-
-Finally, we will keep *LocationID* nested in *MarketID* as a random
-intercepts, and allow random slopes for each *Promotion*.
+path between *Promotion* and sales via *MarketID*. Finally, nested
+random intercepts will also be included.
 
 ``` r
-m1 = lmer(SalesInThousands~Promotion + MarketSize + (Promotion|MarketID/LocationID), d)
+m1 = lmer(SalesInThousands ~ Promotion + MarketSize + (1|MarketID/LocationID), d)
 ```
 
 ``` r
@@ -488,14 +401,16 @@ ggplot(estimates, aes(x = Promotion, y = emmean, fill = Promotion, label = round
 model_output$contrasts
 ```
 
-    ##  contrast                estimate    SE    df t.ratio p.value
-    ##  Promotion1 - Promotion2     9.53 0.612  24.0  15.580  <.0001
-    ##  Promotion1 - Promotion3     4.85 0.640  27.4   7.581  <.0001
-    ##  Promotion2 - Promotion3    -4.67 0.602 121.7  -7.763  <.0001
+    ##  contrast                estimate    SE  df t.ratio p.value
+    ##  Promotion1 - Promotion2     9.72 0.559 125  17.402  <.0001
+    ##  Promotion1 - Promotion3     4.91 0.568 125   8.643  <.0001
+    ##  Promotion2 - Promotion3    -4.82 0.570 125  -8.447  <.0001
     ## 
     ## Results are averaged over the levels of: MarketSize 
     ## Degrees-of-freedom method: satterthwaite 
     ## P value adjustment: tukey method for comparing a family of 3 estimates
+
+## Discussion
 
 This model suggests that Promotion 1 is the superior campaign, followed
 by Promotion 3 and then Promotion 2. All of the individual pairwise
@@ -507,17 +422,23 @@ pairwise comparisons are not aligned in terms of their conclusions. The
 degree of overlap in the error bars suggests a lack of statistical
 significance, while the pairwise comparisons extracted from the model
 all have very low p-values. In this case, however, these two metrics are
-calculated very differently and have different interpretations.
+calculated differently and have distinct interpretations:
 
 - The error bars communicate the degree of uncertainty we have about the
   sales yielded by each promotional campaign, in reference to the
   average across a population of markets. There were 10 markets in this
-  experiment, and we are assuming that these 10 markets represent a
-  subset of a broader population of markets.
-- When it comes to the pairwise comparisons, it is worth remembering
-  that, for the most part, each market saw each promotional campaign at
-  least one time. Consequently, when it comes to comparing one campaign
-  to another, the model is doing those comparisons *within each market*
+  experiment, and the assumption was made that these 10 markets
+  represent a subset of a broader population of markets. Due to the
+  inherent variability in sales that can be attributed to the markets,
+  these estimates have a relatively high uncertainty associated with
+  them.
+- Considering the pairwise comparisons, it is worth remembering that,
+  for the most part, each market saw each promotional campaign at least
+  one time. Consequently, when it comes to comparing one campaign to
+  another, the model is doing those comparisons *within each market*
   first. From there, the model is using that distribution within-market
   comparisons to assess the significance of the difference between two
-  promotional campaigns.
+  promotional campaigns. This gives the pairwise comparisons more
+  statistical power because the model is able to control for the
+  inter-market variability that is not controlled for in the estimated
+  means.
